@@ -4,169 +4,486 @@
 
 #define MAX 100
 
-struct Expense {
+struct Expense
+{
     int id;
-    char name[50];
-    char category[30];
+    char date[20];
     float amount;
+    char category[30];
+    char description[100];
+    char paymentMode[20];
 };
 
 struct Expense expenses[MAX];
+
 int count = 0;
+float budget = 0.0;
 
-// File mein data save karne ke liye
-void saveToFile() {
-    FILE *fp = fopen("expenses.txt", "w");
-    if (!fp) return;
-    fprintf(fp, "%d\n", count);
-    for (int i = 0; i < count; i++) {
-        fprintf(fp, "%d|%s|%s|%.2f\n", expenses[i].id, expenses[i].name, expenses[i].category, expenses[i].amount);
-    }
-    fclose(fp);
+/* ---------- Helper Function ---------- */
+
+void removeNewline(char str[])
+{
+    str[strcspn(str, "\n")] = '\0';
 }
 
-// File se data load karne ke liye
-void loadFromFile() {
-    FILE *fp = fopen("expenses.txt", "r");
-    if (!fp) return;
-    if (fscanf(fp, "%d\n", &count) != 1) { count = 0; fclose(fp); return; }
-    for (int i = 0; i < count; i++) {
-        fscanf(fp, "%d|%49[^|]|%29[^|]|%f\n", &expenses[i].id, expenses[i].name, expenses[i].category, &expenses[i].amount);
-    }
-    fclose(fp);
+void readString(char str[], int size)
+{
+    fgets(str, size, stdin);
+    removeNewline(str);
 }
 
-// 1. Add Expense
-void addExpense() {
-    if (count >= MAX) { printf("List is full!\n"); return; }
+float readAmount()
+{
+    float amount;
+
+    while (1)
+    {
+        scanf("%f", &amount);
+        getchar();
+
+        if (amount > 0)
+            return amount;
+
+        printf("Invalid amount! Enter a positive value: ");
+    }
+}
+
+/* ---------- File Handling ---------- */
+
+void saveToFile()
+{
+    FILE *file = fopen("expenses.txt", "w");
+
+    if (file == NULL)
+    {
+        printf("Error opening file!\n");
+        return;
+    }
+
+    fprintf(file, "%d\n", count);
+
+    for (int i = 0; i < count; i++)
+    {
+        fprintf(file, "%d|%s|%.2f|%s|%s|%s\n",
+                expenses[i].id,
+                expenses[i].date,
+                expenses[i].amount,
+                expenses[i].category,
+                expenses[i].description,
+                expenses[i].paymentMode);
+    }
+
+    fclose(file);
+
+    /* Save budget separately */
+    FILE *budgetFile = fopen("budget.txt", "w");
+
+    if (budgetFile != NULL)
+    {
+        fprintf(budgetFile, "%.2f", budget);
+        fclose(budgetFile);
+    }
+}
+
+void loadFromFile()
+{
+    FILE *file = fopen("expenses.txt", "r");
+
+    if (file == NULL)
+        return;
+
+    fscanf(file, "%d\n", &count);
+
+    if (count > MAX)
+        count = MAX;
+
+    for (int i = 0; i < count; i++)
+    {
+        fscanf(file,
+               "%d|%19[^|]|%f|%29[^|]|%99[^|]|%19[^\n]\n",
+               &expenses[i].id,
+               expenses[i].date,
+               &expenses[i].amount,
+               expenses[i].category,
+               expenses[i].description,
+               expenses[i].paymentMode);
+    }
+
+    fclose(file);
+
+    /* Load budget */
+    FILE *budgetFile = fopen("budget.txt", "r");
+
+    if (budgetFile != NULL)
+    {
+        fscanf(budgetFile, "%f", &budget);
+        fclose(budgetFile);
+    }
+}
+
+/* ---------- Add Expense ---------- */
+
+void addExpense()
+{
+    if (count >= MAX)
+    {
+        printf("\nExpense storage is full!\n");
+        return;
+    }
+
     expenses[count].id = count + 1;
-    
-    printf("Enter expense name: ");
-    scanf("%s", expenses[count].name);
-    printf("Enter category: ");
-    scanf("%s", expenses[count].category);
-    printf("Enter amount: ");
-    scanf("%f", &expenses[count].amount);
-    
+
+    printf("\nEnter Date (DD-MM-YYYY): ");
+    readString(expenses[count].date,
+               sizeof(expenses[count].date));
+
+    printf("Enter Amount: ");
+    expenses[count].amount = readAmount();
+
+    printf("Enter Category: ");
+    readString(expenses[count].category,
+               sizeof(expenses[count].category));
+
+    printf("Enter Description: ");
+    readString(expenses[count].description,
+               sizeof(expenses[count].description));
+
+    printf("Enter Payment Mode (Cash/Card/UPI): ");
+    readString(expenses[count].paymentMode,
+               sizeof(expenses[count].paymentMode));
+
     count++;
+
     saveToFile();
-    printf("Expense added successfully!\n");
+
+    printf("\nExpense added successfully!\n");
 }
 
-// 2. View Expenses
-void viewExpenses() {
-    if (count == 0) { printf("No expenses recorded yet.\n"); return; }
-    
-    printf("\n--- EXPENSE LIST ---\n");
-    printf("ID\tName\t\tCategory\tAmount\n");
-    printf("--------------------------------------------------\n");
-    for (int i = 0; i < count; i++) {
-        printf("%d\t%s\t\t%s\t\t%.2f\n", expenses[i].id, expenses[i].name, expenses[i].category, expenses[i].amount);
+/* ---------- Display Expenses ---------- */
+
+void viewExpenses()
+{
+    if (count == 0)
+    {
+        printf("\nNo expense records found.\n");
+        return;
+    }
+
+    printf("\n================ EXPENSE RECORDS ================\n");
+
+    printf("%-4s %-12s %-10s %-15s %-25s %-12s\n",
+           "ID",
+           "Date",
+           "Amount",
+           "Category",
+           "Description",
+           "Payment");
+
+    printf("--------------------------------------------------------------------------\n");
+
+    for (int i = 0; i < count; i++)
+    {
+        printf("%-4d %-12s %-10.2f %-15s %-25s %-12s\n",
+               expenses[i].id,
+               expenses[i].date,
+               expenses[i].amount,
+               expenses[i].category,
+               expenses[i].description,
+               expenses[i].paymentMode);
     }
 }
 
-// 3. Search Expense
-void searchExpense() {
-    char key[50];
-    int found = 0;
-    printf("Enter name or category to search: ");
-    scanf("%s", key);
-    
-    for (int i = 0; i < count; i++) {
-        if (strstr(expenses[i].name, key) != NULL || strstr(expenses[i].category, key) != NULL) {
-            printf("[%d] %s | %s | %.2f\n", expenses[i].id, expenses[i].name, expenses[i].category, expenses[i].amount);
-            found = 1;
+/* ---------- Edit Expense ---------- */
+
+void editExpense()
+{
+    int id;
+
+    if (count == 0)
+    {
+        printf("\nNo expense records available.\n");
+        return;
+    }
+
+    printf("\nEnter Expense ID to edit: ");
+    scanf("%d", &id);
+    getchar();
+
+    if (id < 1 || id > count)
+    {
+        printf("Invalid Expense ID!\n");
+        return;
+    }
+
+    int index = id - 1;
+
+    printf("\nEnter new Date: ");
+    readString(expenses[index].date,
+               sizeof(expenses[index].date));
+
+    printf("Enter new Amount: ");
+    expenses[index].amount = readAmount();
+
+    printf("Enter new Category: ");
+    readString(expenses[index].category,
+               sizeof(expenses[index].category));
+
+    printf("Enter new Description: ");
+    readString(expenses[index].description,
+               sizeof(expenses[index].description));
+
+    printf("Enter new Payment Mode: ");
+    readString(expenses[index].paymentMode,
+               sizeof(expenses[index].paymentMode));
+
+    saveToFile();
+
+    printf("\nExpense updated successfully!\n");
+}
+
+/* ---------- Delete Expense ---------- */
+
+void deleteExpense()
+{
+    int id;
+
+    if (count == 0)
+    {
+        printf("\nNo expense records available.\n");
+        return;
+    }
+
+    printf("\nEnter Expense ID to delete: ");
+    scanf("%d", &id);
+    getchar();
+
+    if (id < 1 || id > count)
+    {
+        printf("Invalid Expense ID!\n");
+        return;
+    }
+
+    int index = id - 1;
+
+    for (int i = index; i < count - 1; i++)
+    {
+        expenses[i] = expenses[i + 1];
+    }
+
+    count--;
+
+    /* Reassign IDs */
+    for (int i = 0; i < count; i++)
+    {
+        expenses[i].id = i + 1;
+    }
+
+    saveToFile();
+
+    printf("\nExpense deleted successfully!\n");
+}
+
+/* ---------- Total Expenditure ---------- */
+
+float calculateTotal()
+{
+    float total = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+        total += expenses[i].amount;
+    }
+
+    return total;
+}
+
+/* ---------- Category Summary ---------- */
+
+void categorySummary()
+{
+    if (count == 0)
+    {
+        printf("\nNo expense records available.\n");
+        return;
+    }
+
+    printf("\n============= CATEGORY-WISE SUMMARY =============\n");
+
+    char categories[MAX][30];
+    float totals[MAX];
+
+    int categoryCount = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+        int found = -1;
+
+        for (int j = 0; j < categoryCount; j++)
+        {
+            if (strcmp(categories[j], expenses[i].category) == 0)
+            {
+                found = j;
+                break;
+            }
+        }
+
+        if (found != -1)
+        {
+            totals[found] += expenses[i].amount;
+        }
+        else
+        {
+            strcpy(categories[categoryCount],
+                   expenses[i].category);
+
+            totals[categoryCount] =
+                expenses[i].amount;
+
+            categoryCount++;
         }
     }
-    if (!found) printf("No matching expense found.\n");
-}
 
-// 4. Edit Expense
-void editExpense() {
-    int id;
-    printf("Enter expense ID to edit: ");
-    scanf("%d", &id);
-    int idx = id - 1;
-    
-    if (idx < 0 || idx >= count) { printf("Expense not found.\n"); return; }
-    
-    printf("Enter new name: ");
-    scanf("%s", expenses[idx].name);
-    printf("Enter new category: ");
-    scanf("%s", expenses[idx].category);
-    printf("Enter new amount: ");
-    scanf("%f", &expenses[idx].amount);
-    
-    saveToFile();
-    printf("Expense updated successfully!\n");
-}
-
-// 5. Delete Expense
-void deleteExpense() {
-    int id;
-    printf("Enter expense ID to delete: ");
-    scanf("%d", &id);
-    int idx = id - 1;
-    
-    if (idx < 0 || idx >= count) { printf("Expense not found.\n"); return; }
-    
-    for (int i = idx; i < count - 1; i++) {
-        expenses[i] = expenses[i + 1];
-        expenses[i].id = i + 1; // ID re-adjust karna
+    for (int i = 0; i < categoryCount; i++)
+    {
+        printf("%-20s : %.2f\n",
+               categories[i],
+               totals[i]);
     }
-    count--;
-    saveToFile();
-    printf("Expense deleted successfully!\n");
 }
 
-// 6. Show Summary
-void showSummary() {
-    if (count == 0) { printf("No expenses recorded yet.\n"); return; }
-    
-    float total = 0;
-    int high = 0, low = 0;
-    
-    for (int i = 0; i < count; i++) {
-        total += expenses[i].amount;
-        if (expenses[i].amount > expenses[high].amount) high = i;
-        if (expenses[i].amount < expenses[low].amount) low = i;
+/* ---------- Summary ---------- */
+
+void showSummary()
+{
+    if (count == 0)
+    {
+        printf("\nNo expense records available.\n");
+        return;
     }
-    
-    printf("\nTotal expenses: %.2f\n", total);
-    printf("Highest expense: %s (%.2f)\n", expenses[high].name, expenses[high].amount);
-    printf("Lowest expense: %s (%.2f)\n", expenses[low].name, expenses[low].amount);
+
+    float total = calculateTotal();
+
+    float highest = expenses[0].amount;
+    float lowest = expenses[0].amount;
+
+    for (int i = 1; i < count; i++)
+    {
+        if (expenses[i].amount > highest)
+            highest = expenses[i].amount;
+
+        if (expenses[i].amount < lowest)
+            lowest = expenses[i].amount;
+    }
+
+    printf("\n================ EXPENSE SUMMARY ================\n");
+
+    printf("Total Expenses      : %.2f\n", total);
+    printf("Highest Expense     : %.2f\n", highest);
+    printf("Lowest Expense      : %.2f\n", lowest);
+    printf("Number of Records   : %d\n", count);
+
+    if (budget > 0)
+    {
+        printf("Set Budget          : %.2f\n", budget);
+        printf("Remaining Budget    : %.2f\n",
+               budget - total);
+
+        if (total > budget)
+        {
+            printf("Budget Status       : Budget Exceeded\n");
+        }
+        else
+        {
+            printf("Budget Status       : Within Budget\n");
+        }
+    }
+    else
+    {
+        printf("Budget              : Not Set\n");
+    }
 }
 
-int main() {
+/* ---------- Budget Module ---------- */
+
+void setBudget()
+{
+    printf("\nEnter your budget: ");
+    budget = readAmount();
+
+    saveToFile();
+
+    printf("Budget set successfully!\n");
+}
+
+/* ---------- Main Menu ---------- */
+
+int main()
+{
     int choice;
-    loadFromFile(); // Program start hote hi data load hoga
 
-    while (1) {
-        printf("\n=== EXPENSE TRACKER ===\n");
+    loadFromFile();
+
+    while (1)
+    {
+        printf("\n\n==============================================\n");
+        printf("             EXPENSE TRACKER\n");
+        printf("==============================================\n");
+
         printf("1. Add Expense\n");
         printf("2. View Expenses\n");
-        printf("3. Search Expense\n");
-        printf("4. Edit Expense\n");
-        printf("5. Delete Expense\n");
-        printf("6. Show Summary\n");
-        printf("7. Save & Exit\n");
+        printf("3. Edit Expense\n");
+        printf("4. Delete Expense\n");
+        printf("5. Total & Summary\n");
+        printf("6. Category-wise Summary\n");
+        printf("7. Set Budget\n");
+        printf("8. Exit\n");
+
+        printf("==============================================\n");
+
         printf("Enter your choice: ");
         scanf("%d", &choice);
+        getchar();
 
-        switch (choice) {
-            case 1: addExpense(); break;
-            case 2: viewExpenses(); break;
-            case 3: searchExpense(); break;
-            case 4: editExpense(); break;
-            case 5: deleteExpense(); break;
-            case 6: showSummary(); break;
-            case 7: 
+        switch (choice)
+        {
+            case 1:
+                addExpense();
+                break;
+
+            case 2:
+                viewExpenses();
+                break;
+
+            case 3:
+                editExpense();
+                break;
+
+            case 4:
+                deleteExpense();
+                break;
+
+            case 5:
+                showSummary();
+                break;
+
+            case 6:
+                categorySummary();
+                break;
+
+            case 7:
+                setBudget();
+                break;
+
+            case 8:
                 saveToFile();
-                printf("\nData saved. Goodbye!\n");
+                printf("\nData saved successfully.\n");
+                printf("Thank you for using Expense Tracker!\n");
                 return 0;
+
             default:
                 printf("\nInvalid choice! Please try again.\n");
         }
     }
+
     return 0;
 }
